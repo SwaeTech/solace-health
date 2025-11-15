@@ -27,9 +27,9 @@ type FocusAreas = {
 export default function Home() {
   const [advocates, setAdvocates] = useState<Advocate[]>([]);
   const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    console.log("fetching advocates...");
     fetch("/api/advocates").then((response) => {
       response.json().then((jsonResponse) => {
         setAdvocates(jsonResponse.data);
@@ -38,32 +38,26 @@ export default function Home() {
     });
   }, []);
 
-  const onChange = (e: { target: { value: any } }) => {
-    const searchTerm = e.target.value;
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
 
-    // TODO: handle antipattern direct DOM manipulation
-    const searchTermElement = document.getElementById("search-term");
-    if (searchTermElement) {
-      searchTermElement.innerHTML = searchTerm;
-    }
-
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
+    const filtered = advocates.filter((advocate) => {
       return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
+        advocate.firstName.includes(value) ||
+        advocate.lastName.includes(value) ||
+        advocate.city.includes(value) ||
+        advocate.degree.includes(value) ||
+        advocate.specialties.some(s => s.name.includes(value)) ||
+        advocate.yearsOfExperience.includes(value)
       );
     });
 
-    setFilteredAdvocates(filteredAdvocates);
+    setFilteredAdvocates(filtered);
   };
 
   const onClick = () => {
-    console.log(advocates);
+    setSearchTerm("");
     setFilteredAdvocates(advocates);
   };
 
@@ -73,10 +67,11 @@ export default function Home() {
       <div className="my-6">
         <p>Search</p>
         <p>
-          Searching for: <span id="search-term"></span>
+          Searching for: <span>{searchTerm}</span>
         </p>
         <input
           className="border border-black px-2 py-1 rounded"
+          value={searchTerm}
           onChange={onChange}
         />
         <button
