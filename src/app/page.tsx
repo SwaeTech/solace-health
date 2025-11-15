@@ -48,8 +48,8 @@ export default function Home() {
         advocate.lastName.includes(value) ||
         advocate.city.includes(value) ||
         advocate.degree.includes(value) ||
-        advocate.specialties.some(s => s.name.includes(value)) ||
-        advocate.yearsOfExperience.includes(value)
+        advocate.specialties.some((s) => s.name.includes(value)) ||
+        advocate.yearsOfExperience.toString().includes(value)
       );
     });
 
@@ -65,14 +65,11 @@ export default function Home() {
     <main className="m-6">
       <h1 className="text-2xl font-bold">Solace Advocates</h1>
       <div className="my-6">
-        <p>Search</p>
-        <p>
-          Searching for: <span>{searchTerm}</span>
-        </p>
         <input
-          className="border border-black px-2 py-1 rounded"
+          className="border border-black px-2 py-1 rounded w-80"
           value={searchTerm}
           onChange={onChange}
+          placeholder="search for your advocate"
         />
         <button
           className="ml-2 px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
@@ -83,7 +80,10 @@ export default function Home() {
       </div>
       <div className="flex flex-col gap-6 w-full">
         {filteredAdvocates.map((advocate) => (
-          <AdvocateCard key={advocate.firstName + advocate.lastName + advocate.phoneNumber} advocate={advocate} />
+          <AdvocateCard
+            key={advocate.firstName + advocate.lastName + advocate.phoneNumber}
+            advocate={advocate}
+          />
         ))}
       </div>
     </main>
