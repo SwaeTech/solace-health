@@ -67,50 +67,72 @@ export default function Home() {
   };
 
   return (
-    <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
+    <main className="m-6">
+      <h1 className="text-2xl font-bold">Solace Advocates</h1>
+      <div className="my-6">
         <p>Search</p>
         <p>
           Searching for: <span id="search-term"></span>
         </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+        <input className="border border-black px-2 py-1 rounded" onChange={onChange} />
+        <button className="ml-2 px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200" onClick={onClick}>
+          Reset Search
+        </button>
       </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
+      <div className="flex flex-col gap-6 w-full">
+        {filteredAdvocates.map((advocate) => (
+          <div
+            key={advocate.firstName + advocate.lastName + advocate.phoneNumber}
+            className="flex flex-row items-center border border-gray-300 rounded-lg p-6 w-full shadow-md bg-white"
+          >
+            <div className="flex-1">
+              <h2 className="text-xl font-semibold mb-2">
+                {advocate.firstName} {advocate.lastName}
+              </h2>
+              <p>
+                <span className="font-semibold">City:</span> {advocate.city}
+              </p>
+              <p>
+                <span className="font-semibold">Degree:</span> {advocate.degree}
+              </p>
+              <p>
+                <span className="font-semibold">Years of Experience:</span> {advocate.yearsOfExperience}
+              </p>
+              <p>
+                <span className="font-semibold">Phone Number:</span> {advocate.phoneNumber}
+              </p>
+            </div>
+            <div className="flex-1">
+              <div className="mb-2">
+                <span className="font-semibold">Specialties:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
                   {advocate.specialties.map((s) => (
-                    <div key={s.id}>{s.name}</div>
+                    <span
+                      key={s.id}
+                      className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium"
+                    >
+                      {s.name}
+                    </span>
                   ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                </div>
+              </div>
+              <div>
+                <span className="font-semibold">Focus Areas:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {advocate.focusAreas.map((fa) => (
+                    <span
+                      key={fa.id}
+                      className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium"
+                    >
+                      {fa.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
