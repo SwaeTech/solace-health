@@ -74,8 +74,14 @@ export default function Home() {
         <p>
           Searching for: <span id="search-term"></span>
         </p>
-        <input className="border border-black px-2 py-1 rounded" onChange={onChange} />
-        <button className="ml-2 px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200" onClick={onClick}>
+        <input
+          className="border border-black px-2 py-1 rounded"
+          onChange={onChange}
+        />
+        <button
+          className="ml-2 px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+          onClick={onClick}
+        >
           Reset Search
         </button>
       </div>
@@ -83,7 +89,7 @@ export default function Home() {
         {filteredAdvocates.map((advocate) => (
           <div
             key={advocate.firstName + advocate.lastName + advocate.phoneNumber}
-            className="flex flex-row items-center border border-gray-300 rounded-lg p-6 w-full shadow-md bg-white"
+            className="flex flex-row items-center border border-gray-300 rounded-lg p-6 w-full shadow-md bg-gradient-to-r from-accentMid/20 via-white to-white"
           >
             <div className="flex-1">
               <h2 className="text-xl font-semibold mb-2">
@@ -96,10 +102,12 @@ export default function Home() {
                 <span className="font-semibold">Degree:</span> {advocate.degree}
               </p>
               <p>
-                <span className="font-semibold">Years of Experience:</span> {advocate.yearsOfExperience}
+                <span className="font-semibold">Years of Experience:</span>{" "}
+                {advocate.yearsOfExperience}
               </p>
               <p>
-                <span className="font-semibold">Phone Number:</span> {advocate.phoneNumber}
+                <span className="font-semibold">Phone Number:</span>{" "}
+                {advocate.phoneNumber}
               </p>
             </div>
             <div className="flex-1">
@@ -109,7 +117,7 @@ export default function Home() {
                   {advocate.specialties.map((s) => (
                     <span
                       key={s.id}
-                      className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium"
+                      className="px-3 py-1 bg-accentGoldLight rounded-full text-neutralBlack text-sm font-medium"
                     >
                       {s.name}
                     </span>
@@ -122,7 +130,7 @@ export default function Home() {
                   {advocate.focusAreas.map((fa) => (
                     <span
                       key={fa.id}
-                      className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium"
+                      className="px-3 py-1 bg-primaryDefault rounded-full text-white text-sm font-medium"
                     >
                       {fa.name}
                     </span>
