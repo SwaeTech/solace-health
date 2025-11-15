@@ -2,9 +2,30 @@
 
 import { useEffect, useState } from "react";
 
+type Advocate = {
+  firstName: string;
+  lastName: string;
+  city: string;
+  degree: string;
+  specialties: Specialties[];
+  focusAreas: FocusAreas[];
+  yearsOfExperience: string;
+  phoneNumber: string;
+};
+
+type Specialties = {
+  id: number | null;
+  name: string;
+};
+
+type FocusAreas = {
+  id: number | null;
+  name: string;
+};
+
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const [advocates, setAdvocates] = useState<Advocate[]>([]);
+  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
 
   useEffect(() => {
     console.log("fetching advocates...");
@@ -16,10 +37,14 @@ export default function Home() {
     });
   }, []);
 
-  const onChange = (e) => {
+  const onChange = (e: { target: { value: any } }) => {
     const searchTerm = e.target.value;
 
-    document.getElementById("search-term").innerHTML = searchTerm;
+    // TODO: handle antipattern direct DOM manipulation
+    const searchTermElement = document.getElementById("search-term");
+    if (searchTermElement) {
+      searchTermElement.innerHTML = searchTerm;
+    }
 
     console.log("filtering advocates...");
     const filteredAdvocates = advocates.filter((advocate) => {
@@ -76,7 +101,7 @@ export default function Home() {
                 <td>{advocate.degree}</td>
                 <td>
                   {advocate.specialties.map((s) => (
-                    <div>{s}</div>
+                    <div key={s.id}>{s.name}</div>
                   ))}
                 </td>
                 <td>{advocate.yearsOfExperience}</td>
