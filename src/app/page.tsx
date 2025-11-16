@@ -1,91 +1,91 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { AdvocateCard } from "./components/AdvocateCard";
+import { useAdvocates } from "./hooks/useAdvocates";
+
+// Simple debounce helper
+function useDebouncedValue<T>(value: T, delay = 300) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedQ = useDebouncedValue(searchTerm, 300);
 
-  useEffect(() => {
-    console.log("fetching advocates...");
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useAdvocates(debouncedQ);
 
-  const onChange = (e) => {
-    const searchTerm = e.target.value;
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-    document.getElementById("search-term").innerHTML = searchTerm;
+  // Flatten paginated data (server already filters by q)
+  const advocates = data?.pages.flatMap((page) => page.data) ?? [];
 
-    console.log("filtering advocates...");
-    const filteredAdvocates = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(searchTerm) ||
-        advocate.lastName.includes(searchTerm) ||
-        advocate.city.includes(searchTerm) ||
-        advocate.degree.includes(searchTerm) ||
-        advocate.specialties.includes(searchTerm) ||
-        advocate.yearsOfExperience.includes(searchTerm)
-      );
-    });
-
-    setFilteredAdvocates(filteredAdvocates);
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
   const onClick = () => {
-    console.log(advocates);
-    setFilteredAdvocates(advocates);
+    setSearchTerm("");
   };
 
+  useEffect(() => {
+    if (!sentinelRef.current || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, data?.pages?.length]);
+
   return (
-    <main style={{ margin: "24px" }}>
-      <h1>Solace Advocates</h1>
-      <br />
-      <br />
-      <div>
-        <p>Search</p>
-        <p>
-          Searching for: <span id="search-term"></span>
-        </p>
-        <input style={{ border: "1px solid black" }} onChange={onChange} />
-        <button onClick={onClick}>Reset Search</button>
+    <main className="m-6">
+      <h1 className="text-2xl font-bold">Solace Advocates</h1>
+      <div className="my-6">
+        <input
+          className="border border-black px-2 py-1 rounded w-80"
+          value={searchTerm}
+          onChange={onChange}
+          placeholder="search for your advocate"
+        />
+        <button
+          className="ml-2 px-3 py-1 border rounded bg-gray-100 hover:bg-gray-200"
+          onClick={onClick}
+        >
+          Reset Search
+        </button>
       </div>
-      <br />
-      <br />
-      <table>
-        <thead>
-          <th>First Name</th>
-          <th>Last Name</th>
-          <th>City</th>
-          <th>Degree</th>
-          <th>Specialties</th>
-          <th>Years of Experience</th>
-          <th>Phone Number</th>
-        </thead>
-        <tbody>
-          {filteredAdvocates.map((advocate) => {
-            return (
-              <tr>
-                <td>{advocate.firstName}</td>
-                <td>{advocate.lastName}</td>
-                <td>{advocate.city}</td>
-                <td>{advocate.degree}</td>
-                <td>
-                  {advocate.specialties.map((s) => (
-                    <div>{s}</div>
-                  ))}
-                </td>
-                <td>{advocate.yearsOfExperience}</td>
-                <td>{advocate.phoneNumber}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="flex flex-col gap-6 w-full">
+        {advocates.map((advocate: any) => (
+          <AdvocateCard
+            key={
+              (advocate.advocateId ?? "") +
+              advocate.firstName +
+              advocate.lastName +
+              advocate.phoneNumber
+            }
+            advocate={advocate}
+          />
+        ))}
+        {hasNextPage && (
+          <div ref={sentinelRef} className="h-8" />
+        )}
+        {isFetchingNextPage && <div>Loading...</div>}
+        {isLoading && advocates.length === 0 && <div>Loading...</div>}
+        {!isLoading && advocates.length === 0 && (
+          <div>No advocates found.</div>
+        )}
+      </div>
     </main>
   );
 }
