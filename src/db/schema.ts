@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { InferSelectModel, sql } from "drizzle-orm";
 import {
   pgTable,
   integer,
@@ -82,17 +82,17 @@ export const advocateFocusAreas = pgTable(
 export const advocateSpecialtyFocusView = pgView(
   "advocate_specialty_focus_view",
   {
-    advocateId: integer("advocate_id"),
-    firstName: text("first_name"),
-    lastName: text("last_name"),
-    city: text("city"),
-    degree: text("degree"),
-    yearsOfExperience: integer("years_of_experience"),
-    phoneNumber: bigint("phone_number", { mode: "number" }),
-    focusAreaId: integer("focus_area_id"),
-    focusAreaName: text("focus_area_name"),
-    specialtyId: integer("specialty_id"),
-    specialtyName: text("specialty_name"),
+    advocateId: integer("advocate_id").notNull(),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    city: text("city").notNull(),
+    degree: text("degree").notNull(),
+    yearsOfExperience: integer("years_of_experience").notNull(),
+    phoneNumber: bigint("phone_number", { mode: "number" }).notNull(),
+    focusAreaId: integer("focus_area_id").notNull(),
+    focusAreaName: text("focus_area_name").notNull(),
+    specialtyId: integer("specialty_id").notNull(),
+    specialtyName: text("specialty_name").notNull(),
   }
 ).as(sql`SELECT
   a.id AS advocate_id,
@@ -114,3 +114,4 @@ JOIN ${specialties} s ON fa.specialty_id = s.id`);
 export type Advocate = typeof advocates.$inferSelect;
 export type Specialty = typeof specialties.$inferSelect;
 export type FocusArea = typeof focusAreas.$inferSelect;
+export type AdvocateSpecialtyFocusViewRow = typeof advocateSpecialtyFocusView.$inferSelect;

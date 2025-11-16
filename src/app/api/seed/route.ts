@@ -14,10 +14,8 @@ import {
 import { SQL, Placeholder } from "drizzle-orm";
 
 export async function POST() {
-  const dba = db as PostgresJsDatabase;
-
   try {
-    const insertedSpecialties = await dba
+    const insertedSpecialties = await db
       .insert(specialties)
       .values(specialtiesWithFocusAreas.map((s) => ({ name: s.specialty })))
       .onConflictDoNothing()
@@ -25,37 +23,32 @@ export async function POST() {
 
     console.info(`Inserted ${insertedSpecialties.length} specialties`);
 
-    const focusAreaValues:
-      | {
-          name: string | SQL<unknown> | Placeholder<string, any>;
-          specialtyId: number | SQL<unknown> | Placeholder<string, any>;
-          id?: number | SQL<unknown> | Placeholder<string, any> | undefined;
-          createdAt?:
-            | SQL<unknown>
-            | Date
-            | Placeholder<string, any>
-            | null
-            | undefined;
-        }[]
-      | { specialtyId: number; name: string }[] = [];
-    specialtiesWithFocusAreas.forEach((item, index) => {
-      const specialty = insertedSpecialties[index];
+    // Fetch all specialties to ensure you have all IDs
+    const allSpecialties = await db.select().from(specialties);
+    const specialtyMap = new Map(allSpecialties.map((s) => [s.name, s.id]));
+
+    const focusAreaValues: { specialtyId: number; name: string }[] = [];
+    specialtiesWithFocusAreas.forEach((item) => {
+      const specialtyId = specialtyMap.get(item.specialty);
+      if (!specialtyId) {
+        throw new Error(`Specialty not found: ${item.specialty}`);
+      }
       item.focusAreas.forEach((focusArea) => {
         focusAreaValues.push({
-          specialtyId: specialty.id,
+          specialtyId,
           name: focusArea,
         });
       });
     });
 
-    const insertedFocusAreas = await dba
+    const insertedFocusAreas = await db
       .insert(focusAreas)
       .values(focusAreaValues)
       .returning();
 
     console.info(`Inserted ${insertedFocusAreas.length} focus areas`);
 
-    const insertedAdvocates = await dba
+    const insertedAdvocates = await db
       .insert(advocates)
       .values(advocateData)
       .returning();
@@ -63,14 +56,19 @@ export async function POST() {
     console.info(`Inserted ${insertedAdvocates.length} advocates`);
 
     const relationships = insertedAdvocates.flatMap((advocate) => {
-      const focusAreaIds = getRandomFocusAreaIds(insertedFocusAreas.length, 8);
+      // Assign 3-8 random focus areas to every advocate
+      const numFocusAreas = Math.floor(Math.random() * 6) + 3; // 3 to 8
+      const focusAreaIds = getRandomFocusAreaIds(
+        insertedFocusAreas.length,
+        numFocusAreas
+      );
       return focusAreaIds.map((focusAreaId) => ({
         advocateId: advocate.id,
         focusAreaId,
       }));
     });
 
-    const insertedRelationships = await dba
+    const insertedRelationships = await db
       .insert(advocateFocusAreas)
       .values(relationships)
       .returning();

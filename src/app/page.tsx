@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AdvocateCard } from "../components/AdvocateCard";
+import { useState, useRef, useEffect } from "react";
+import { AdvocateCard } from "./components/AdvocateCard";
+import { useAdvocates } from "./hooks/useAdvocates";
 
 type Advocate = {
   firstName: string;
@@ -25,41 +26,50 @@ type FocusAreas = {
 };
 
 export default function Home() {
-  const [advocates, setAdvocates] = useState<Advocate[]>([]);
-  const [filteredAdvocates, setFilteredAdvocates] = useState<Advocate[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useAdvocates();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetch("/api/advocates").then((response) => {
-      response.json().then((jsonResponse) => {
-        setAdvocates(jsonResponse.data);
-        setFilteredAdvocates(jsonResponse.data);
-      });
-    });
-  }, []);
+  // Flatten paginated data
+  const advocates = data?.pages.flatMap((page) => page.data) ?? [];
+
+  // Filter advocates by search term
+  const filteredAdvocates = advocates.filter((advocate) => {
+    const value = searchTerm.toLowerCase();
+    return (
+      advocate.firstName.toLowerCase().includes(value) ||
+      advocate.lastName.toLowerCase().includes(value) ||
+      advocate.city.toLowerCase().includes(value) ||
+      advocate.degree.toLowerCase().includes(value) ||
+      advocate.specialties.some((s: { name: string }) =>
+        s.name.toLowerCase().includes(value)
+      ) ||
+      advocate.yearsOfExperience.toString().includes(value)
+    );
+  });
 
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-
-    const filtered = advocates.filter((advocate) => {
-      return (
-        advocate.firstName.includes(value) ||
-        advocate.lastName.includes(value) ||
-        advocate.city.includes(value) ||
-        advocate.degree.includes(value) ||
-        advocate.specialties.some((s) => s.name.includes(value)) ||
-        advocate.yearsOfExperience.toString().includes(value)
-      );
-    });
-
-    setFilteredAdvocates(filtered);
+    setSearchTerm(e.target.value);
   };
 
   const onClick = () => {
     setSearchTerm("");
-    setFilteredAdvocates(advocates);
   };
+
+  useEffect(() => {
+    if (!sentinelRef.current || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <main className="m-6">
@@ -85,6 +95,12 @@ export default function Home() {
             advocate={advocate}
           />
         ))}
+        {hasNextPage && (
+          <div ref={sentinelRef} className="h-8">
+            Sentinel
+          </div>
+        )}
+        {isFetchingNextPage && <div>Loading...</div>}
       </div>
     </main>
   );
