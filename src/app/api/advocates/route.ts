@@ -1,13 +1,107 @@
 import db from "../../../db";
 import { advocates, advocateSpecialtyFocusView } from "../../../db/schema";
-import { asc, count, inArray } from "drizzle-orm";
+import { asc, count, countDistinct, inArray, ilike, or, sql } from "drizzle-orm";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const limit = Math.max(parseInt(searchParams.get("limit") ?? "20", 10), 1);
   const offset = Math.max(parseInt(searchParams.get("offset") ?? "0", 10), 0);
+  const q = (searchParams.get("q") ?? "").trim();
 
-  // Page by unique advocates (not by view rows)
+  // When searching, page by DISTINCT advocate IDs that match any field in the view.
+  if (q.length > 0) {
+    const pattern = `%${q}%`;
+
+    const whereClause = or(
+      ilike(advocateSpecialtyFocusView.firstName, pattern),
+      ilike(advocateSpecialtyFocusView.lastName, pattern),
+      ilike(advocateSpecialtyFocusView.city, pattern),
+      ilike(advocateSpecialtyFocusView.degree, pattern),
+      ilike(advocateSpecialtyFocusView.specialtyName, pattern),
+      ilike(advocateSpecialtyFocusView.focusAreaName, pattern),
+      // numeric -> text casts
+      sql`${advocateSpecialtyFocusView.yearsOfExperience}::text ILIKE ${pattern}`,
+      sql`${advocateSpecialtyFocusView.phoneNumber}::text ILIKE ${pattern}`
+    );
+
+    const [pageIds, [{ total }]] = await Promise.all([
+      db
+        .selectDistinct({ id: advocateSpecialtyFocusView.advocateId })
+        .from(advocateSpecialtyFocusView)
+        .where(whereClause)
+        .orderBy(asc(advocateSpecialtyFocusView.advocateId))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ total: countDistinct(advocateSpecialtyFocusView.advocateId) })
+        .from(advocateSpecialtyFocusView)
+        .where(whereClause),
+    ]);
+
+    if (pageIds.length === 0) {
+      return Response.json({ data: [], nextOffset: null, total: Number(total) });
+    }
+
+    const ids = pageIds.map((r) => r.id);
+
+    const rows = await db
+      .select()
+      .from(advocateSpecialtyFocusView)
+      .where(inArray(advocateSpecialtyFocusView.advocateId, ids));
+
+    // Group rows -> advocates
+    const map = new Map<
+      number,
+      {
+        advocateId: number;
+        firstName: string;
+        lastName: string;
+        city: string;
+        degree: string;
+        yearsOfExperience: number;
+        phoneNumber: number;
+        specialties: { id: number | null; name: string }[];
+        focusAreas: { id: number | null; name: string }[];
+      }
+    >();
+
+    for (const row of rows) {
+      if (!map.has(row.advocateId)) {
+        map.set(row.advocateId, {
+          advocateId: row.advocateId,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          city: row.city,
+          degree: row.degree,
+          yearsOfExperience: row.yearsOfExperience,
+          phoneNumber: row.phoneNumber,
+          specialties: [],
+          focusAreas: [],
+        });
+      }
+      const adv = map.get(row.advocateId)!;
+
+      if (
+        row.specialtyId != null &&
+        !adv.specialties.some((s) => s.id === row.specialtyId)
+      ) {
+        adv.specialties.push({ id: row.specialtyId, name: row.specialtyName });
+      }
+      if (
+        row.focusAreaId != null &&
+        !adv.focusAreas.some((f) => f.id === row.focusAreaId)
+      ) {
+        adv.focusAreas.push({ id: row.focusAreaId, name: row.focusAreaName });
+      }
+    }
+
+    const data = ids.map((id) => map.get(id)!).filter(Boolean);
+    const nextOffset = offset + limit < Number(total) ? offset + limit : null;
+
+    return Response.json({ data, nextOffset, total: Number(total) });
+  }
+
+  // No search: page by unique advocates (ensures advocates with 0 relations are included)
   const [pageAdvocates, [{ total }]] = await Promise.all([
     db
       .select()
@@ -22,15 +116,13 @@ export async function GET(request: Request) {
     return Response.json({ data: [], nextOffset: null, total: Number(total) });
   }
 
-  const ids = pageAdvocates.map((a: { id: any }) => a.id);
+  const ids = pageAdvocates.map((a) => a.id);
 
-  // Pull all relations for the advocates in this page
   const rows = await db
     .select()
     .from(advocateSpecialtyFocusView)
     .where(inArray(advocateSpecialtyFocusView.advocateId, ids));
 
-  // Seed map with base advocate info to include those with 0 relations
   const map = new Map<
     number,
     {
@@ -60,9 +152,7 @@ export async function GET(request: Request) {
     });
   }
 
-  // Merge specialties and focus areas, deduping per advocate
   for (const row of rows) {
-    if (row.advocateId == null) continue;
     const adv = map.get(row.advocateId);
     if (!adv) continue;
 
@@ -72,7 +162,6 @@ export async function GET(request: Request) {
     ) {
       adv.specialties.push({ id: row.specialtyId, name: row.specialtyName });
     }
-
     if (
       row.focusAreaId != null &&
       !adv.focusAreas.some((f) => f.id === row.focusAreaId)
@@ -81,8 +170,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // Preserve page ordering
-  const data = ids.map((id: number) => map.get(id)!);
+  const data = ids.map((id) => map.get(id)!);
   const nextOffset = offset + limit < Number(total) ? offset + limit : null;
 
   return Response.json({ data, nextOffset, total: Number(total) });
